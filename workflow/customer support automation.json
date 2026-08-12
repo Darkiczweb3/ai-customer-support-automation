@@ -1,0 +1,1378 @@
+{
+  "name": "AI email triage",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-email-triage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1056,
+        -64
+      ],
+      "id": "11a83207-66e9-473f-b553-33d8bd7d3f43",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3396fdc0-d44f-4e42-aa62-f9a601bbd85a",
+              "leftValue": "={{ $json.validation_status }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -528,
+        -64
+      ],
+      "id": "24d28381-f1e9-4a03-8135-3f1b157d7dd2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst errors = [];\n\nif (!data.name || data.name.trim() === '') {\n  errors.push('Missing name');\n}\n\nif (!data.message || data.message.trim() === '') {\n  errors.push('Missing message');\n}\n\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n\nlet email_valid = true;\n\nif (!data.email || data.email.trim() === '') {\n  email_valid = false;\n  errors.push('Missing email');\n} else if (!emailRegex.test(data.email)) {\n  email_valid = false;\n  errors.push('Invalid email format');\n}\n\nreturn [\n  {\n    json: {\n      ...data,\n      validation_status: errors.length === 0 ? 'valid' : 'invalid',\n      email_valid,\n      validation_errors: errors\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        -64
+      ],
+      "id": "e924303d-14a4-4ced-a8f2-7f16ac1e1893",
+      "name": "data validation"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Email Triage CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Arkusz1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.id }}",
+            "NAME": "={{ $('Create Metadata').item.json.name }}",
+            "EMAIL": "={{ $('Create Metadata').item.json.email }}",
+            "SUBJECT": "={{ $('Create Metadata').item.json.subject }}",
+            "MESSAGE": "={{ $('Create Metadata').item.json.message }}",
+            "RECEIVED_AT": "={{ $('Create Metadata').item.json.received_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NAME",
+              "displayName": "NAME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EMAIL",
+              "displayName": "EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SUBJECT",
+              "displayName": "SUBJECT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MESSAGE",
+              "displayName": "MESSAGE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RECEIVED_AT",
+              "displayName": "RECEIVED_AT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -352,
+        -176
+      ],
+      "id": "3c725923-84f6-4d7e-ab7a-553dc066765d",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const text = item.json.output?.[0]?.content?.[0]?.text;\n\n  if (!text) {\n    throw new Error('AI output text not found');\n  }\n\n  const aiResult = JSON.parse(text);\n\n  const originalData = $('Append row in sheet').first().json;\n\n  return {\n    json: {\n      ID: originalData.ID,\n      NAME: originalData.NAME,\n      EMAIL: originalData.EMAIL,\n      SUBJECT: originalData.SUBJECT,\n      MESSAGE: originalData.MESSAGE,\n      RECEIVED_AT: originalData.RECEIVED_AT,\n\n      CATEGORY: aiResult.category,\n      PRIORITY: aiResult.priority,\n      DEPARTMENT: aiResult.department,\n      CAN_AUTO_REPLY: aiResult.can_auto_reply,\n      SUMMARY: aiResult.summary,\n      SUGGESTED_REPLY: aiResult.suggested_reply,\n      CONFIDENCE: aiResult.confidence\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -176
+      ],
+      "id": "a2b3a65f-d726-430c-a7d9-bcca39689e5e",
+      "name": "Parse AI Output"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Email Triage CRM",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Arkusz1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.ID }}",
+            "NAME": "={{ $json.NAME }}",
+            "EMAIL": "={{ $json.EMAIL }}",
+            "SUBJECT": "={{ $json.SUBJECT }}",
+            "MESSAGE": "={{ $json.MESSAGE }}",
+            "RECEIVED_AT": "={{ $json.RECEIVED_AT }}",
+            "CATEGORY": "={{ $json.CATEGORY }}",
+            "PRIORITY": "={{ $json.PRIORITY }}",
+            "DEPARTMENT": "={{ $json.DEPARTMENT }}",
+            "SUMMARY": "={{ $json.SUMMARY }}",
+            "CONFIDENCE": "={{ $json.CONFIDENCE }}",
+            "SUGGESTED_REPLY": "={{ $json.SUGGESTED_REPLY }}",
+            "CAN_AUTO_REPLY": "={{ $json.CAN_AUTO_REPLY }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NAME",
+              "displayName": "NAME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EMAIL",
+              "displayName": "EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SUBJECT",
+              "displayName": "SUBJECT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MESSAGE",
+              "displayName": "MESSAGE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "RECEIVED_AT",
+              "displayName": "RECEIVED_AT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CATEGORY",
+              "displayName": "CATEGORY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PRIORITY",
+              "displayName": "PRIORITY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DEPARTMENT",
+              "displayName": "DEPARTMENT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CAN_AUTO_REPLY",
+              "displayName": "CAN_AUTO_REPLY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SUMMARY",
+              "displayName": "SUMMARY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SUGGESTED_REPLY",
+              "displayName": "SUGGESTED_REPLY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONFIDENCE",
+              "displayName": "CONFIDENCE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1504,
+        -208
+      ],
+      "id": "d69cad7e-848e-49bb-a382-fd833ac2cdcd",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Nie udało się wysłać formularza",
+        "message": "=<p>Dzień dobry,</p>  <p>nie udało się poprawnie przetworzyć przesłanego formularza.</p>  <p><strong>Wykryte problemy:</strong></p>  <p>{{ $json.validation_errors.map(error => '• ' + error).join('<br>') }}</p>  <p>Proszę poprawić wskazane dane i przesłać formularz ponownie.</p>  <p>Pozdrawiamy,<br> Obsługa klienta</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -768,
+        176
+      ],
+      "id": "78a7f7cc-6b6e-41d6-aa48-fa85b8ac0174",
+      "name": "Send a message",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "958a4fb8-d102-4e14-a07a-364246fdedee",
+              "leftValue": "={{ $json.email_valid }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -960,
+        176
+      ],
+      "id": "204f7f3b-196b-417d-82a3-e5e1ab9d2c8d",
+      "name": "email valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Formularz zawiera błędy.\",\n  \"errors\": {{ JSON.stringify($json.validation_errors) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -768,
+        368
+      ],
+      "id": "82de04c7-a1fd-4c22-b2a9-8f6979e0afa7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.PRIORITY }}",
+                    "rightValue": "HIGH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b0b4bb27-2552-455c-88e5-b901e7772bf9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HIGH"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b15be60b-ca1e-46eb-9b34-8b90242774e1",
+                    "leftValue": "={{ $json.PRIORITY }}",
+                    "rightValue": "MEDIUM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MEDIUM"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "24dbe8d8-baa1-46af-b83c-ffda4432b2ce",
+                    "leftValue": "={{ $json.PRIORITY }}",
+                    "rightValue": "LOW",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LOW"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        -224
+      ],
+      "id": "1ca8b7ca-2af7-4ed5-afb7-2b0250b3e509",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2ca6040-c038-4e2e-b7b2-48cd66faaa28",
+              "leftValue": "={{ $('Update row in sheet').item.json.CAN_AUTO_REPLY }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2192,
+        -208
+      ],
+      "id": "48e44ade-f36c-4431-96ed-3048929f0d6f",
+      "name": "can ai auto reply"
+    },
+    {
+      "parameters": {
+        "sendTo": "manager@example.com",
+        "subject": "🚨 HIGH PRIORITY — nowe zgłoszenie klienta",
+        "message": "=<h2>🚨 HIGH PRIORITY — nowe zgłoszenie</h2>  <p><strong>Klient:</strong> {{ $json.name }}</p> <p><strong>Email:</strong> {{ $json.email }}</p> <p><strong>Temat:</strong> {{ $json.subject }}</p>  <hr>  <h3>Klasyfikacja AI</h3>  <p><strong>Kategoria:</strong> {{ $json.category }}</p> <p><strong>Dział:</strong> {{ $json.department }}</p> <p><strong>Priorytet:</strong> {{ $json.priority }}</p> <p><strong>Confidence:</strong> {{ $json.confidence }}</p>  <hr>  <h3>Podsumowanie</h3>  <p>{{ $json.summary }}</p>  <h3>Wiadomość klienta</h3>  <p>{{ $json.message }}</p>  <h3>Sugerowana odpowiedź AI</h3>  <p>{{ $json.suggested_reply }}</p>  <hr>  <p><strong>⚠️ Ta wiadomość wymaga obsługi przez pracownika.</strong></p> <p>Nie wysyłaj automatycznie sugerowanej odpowiedzi bez weryfikacji.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2384,
+        -480
+      ],
+      "id": "eae0ee63-ebe5-4db9-a2fd-fce4134ccdd8",
+      "name": "message to employer",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "manager@example.com",
+        "subject": "=[MEDIUM] Wiadomość wymaga obsługi — {{ $('Update row in sheet').item.json.SUBJECT }}",
+        "message": "=<p><strong>Wiadomość wymaga ręcznej obsługi.</strong></p>\n\n<p><strong>Priorytet:</strong> MEDIUM</p>\n\n<p><strong>Klient:</strong> {{ $('Update row in sheet').item.json.NAME }}<br>\n<strong>E-mail:</strong> {{ $('Update row in sheet').item.json.EMAIL }}<br>\n<strong>Temat:</strong> {{ $('Update row in sheet').item.json.SUBJECT }}</p>\n\n<p><strong>Wiadomość klienta:</strong></p>\n\n<p>{{ $('Update row in sheet').item.json.MESSAGE.replace(/\\n/g, '<br>') }}</p>\n\n<p><strong>Podsumowanie AI:</strong></p>\n\n<p>{{ $('Update row in sheet').item.json.SUMMARY }}</p>\n\n<p><strong>Sugerowana odpowiedź AI:</strong></p>\n\n<p>{{ $json.SUGGESTED_REPLY.replace(/\\n/g, '<br>') }}</p>\n\n<p><strong>Powód przekazania do pracownika:</strong><br>\nAI nie otrzymało zgody na automatyczną odpowiedź.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2384,
+        -112
+      ],
+      "id": "6c3d3097-aae3-4845-bb5d-f5c2a03e94ae",
+      "name": "message to employer1",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Update row in sheet').item.json.EMAIL }}",
+        "subject": "={{ $('Update row in sheet').item.json.SUBJECT }}",
+        "message": "={{ $json.SUGGESTED_REPLY.replaceAll(\"\\\\n\", \"<br>\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2384,
+        -304
+      ],
+      "id": "6a76f6b3-3eac-44eb-b219-002f7cdd86af",
+      "name": "message to user",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Update row in sheet').item.json.EMAIL }}",
+        "subject": "={{ $('Update row in sheet').item.json.SUBJECT }}",
+        "message": "={{ $('Update row in sheet').item.json.SUGGESTED_REPLY.replaceAll(\"\\\\n\", \"<br>\") }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2384,
+        112
+      ],
+      "id": "1612c580-dcba-4a94-8fb7-984a9cf427c0",
+      "name": "message to user1",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nconst errors = [];\n\nconst allowedCategories = [\n  'reklamacja',\n  'zwrot',\n  'dostawa',\n  'faktura',\n  'marketing',\n  'współpraca',\n  'zamówienie',\n  'pytanie o produkt',\n  'inne',\n  'spam'\n];\n\nconst allowedPriorities = [\n  'HIGH',\n  'MEDIUM',\n  'LOW'\n];\n\nconst allowedDepartments = [\n  'reklamacje',\n  'zwroty',\n  'dostawa',\n  'sprzedaż',\n  'zamówienia',\n  'księgowość',\n  'marketing',\n  'współpraca',\n  'brak'\n];\n\n// ==========================================\n// MODEL 1 — CATEGORY\n// ==========================================\n\nif (\n  typeof data.CATEGORY !== 'string' ||\n  !allowedCategories.includes(data.CATEGORY)\n) {\n  errors.push(`Invalid category: ${data.CATEGORY}`);\n}\n\n// ==========================================\n// MODEL 1 — PRIORITY\n// ==========================================\n\nif (\n  typeof data.PRIORITY !== 'string' ||\n  !allowedPriorities.includes(data.PRIORITY)\n) {\n  errors.push(`Invalid priority: ${data.PRIORITY}`);\n}\n\n// ==========================================\n// MODEL 1 — DEPARTMENT\n// ==========================================\n\nif (\n  typeof data.DEPARTMENT !== 'string' ||\n  !allowedDepartments.includes(data.DEPARTMENT)\n) {\n  errors.push(`Invalid department: ${data.DEPARTMENT}`);\n}\n\n// ==========================================\n// MODEL 1 — CAN_AUTO_REPLY\n// ==========================================\n\nif (typeof data.CAN_AUTO_REPLY !== 'boolean') {\n  errors.push('CAN_AUTO_REPLY must be a boolean');\n}\n\n// ==========================================\n// SUMMARY\n// ==========================================\n\nif (\n  typeof data.SUMMARY !== 'string' ||\n  data.SUMMARY.trim() === ''\n) {\n  errors.push('Missing SUMMARY');\n}\n\n// ==========================================\n// SUGGESTED_REPLY\n// ==========================================\n\n// Suggested reply jest wymagany dla każdej wiadomości\n// poza spamem — również gdy CAN_AUTO_REPLY = false.\n\nif (data.CATEGORY !== 'spam') {\n  if (\n    typeof data.SUGGESTED_REPLY !== 'string' ||\n    data.SUGGESTED_REPLY.trim() === ''\n  ) {\n    errors.push('Missing SUGGESTED_REPLY');\n  }\n}\n\n// ==========================================\n// CONFIDENCE\n// ==========================================\n\n// Confidence jest obecnie wyliczane przez\n// Calculate Confidence, a nie przez LLM.\n\nif (\n  typeof data.CONFIDENCE !== 'number' ||\n  data.CONFIDENCE < 0 ||\n  data.CONFIDENCE > 1\n) {\n  errors.push('CONFIDENCE must be a number between 0 and 1');\n}\n\n// ==========================================\n// CONSENSUS SCORE\n// ==========================================\n\nif (\n  typeof data.CONSENSUS_SCORE !== 'number' ||\n  data.CONSENSUS_SCORE < 0 ||\n  data.CONSENSUS_SCORE > 6\n) {\n  errors.push('CONSENSUS_SCORE must be a number between 0 and 6');\n}\n\n// ==========================================\n// MODEL 2 — CATEGORY\n// ==========================================\n\nif (\n  typeof data.MODEL_2_CATEGORY !== 'string' ||\n  !allowedCategories.includes(data.MODEL_2_CATEGORY)\n) {\n  errors.push(`Invalid Model 2 category: ${data.MODEL_2_CATEGORY}`);\n}\n\n// ==========================================\n// MODEL 2 — PRIORITY\n// ==========================================\n\nif (\n  typeof data.MODEL_2_PRIORITY !== 'string' ||\n  !allowedPriorities.includes(data.MODEL_2_PRIORITY)\n) {\n  errors.push(`Invalid Model 2 priority: ${data.MODEL_2_PRIORITY}`);\n}\n\n// ==========================================\n// MODEL 2 — DEPARTMENT\n// ==========================================\n\nif (\n  typeof data.MODEL_2_DEPARTMENT !== 'string' ||\n  !allowedDepartments.includes(data.MODEL_2_DEPARTMENT)\n) {\n  errors.push(`Invalid Model 2 department: ${data.MODEL_2_DEPARTMENT}`);\n}\n\n// ==========================================\n// MODEL 2 — CAN_AUTO_REPLY\n// ==========================================\n\nif (typeof data.MODEL_2_CAN_AUTO_REPLY !== 'boolean') {\n  errors.push('MODEL_2_CAN_AUTO_REPLY must be a boolean');\n}\n\n// ==========================================\n// OUTPUT\n// ==========================================\n\nreturn [\n  {\n    json: {\n      ...data,\n      ai_validation: errors.length === 0,\n      ai_validation_errors: errors\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -176
+      ],
+      "id": "fadbeb5e-648c-41d8-b938-cd1e71b11b52",
+      "name": "AI Output Validation"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "19de7c37-09c4-4813-976d-0b0ac6355ac2",
+              "leftValue": "={{ $json.ai_validation }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1072,
+        -176
+      ],
+      "id": "732dd8d1-fb99-459f-86f8-6cf7f6e4cb5c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nreturn [\n  {\n    json: {\n      success: false,\n      error_type: 'AI_OUTPUT_VALIDATION_FAILED',\n      message: 'AI returned invalid structured data.',\n      validation_errors: data.ai_validation_errors || [],\n      request_id: data.ID || null,\n      received_at: data.RECEIVED_AT || null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        48
+      ],
+      "id": "021736a4-fee1-487b-a8f2-8506bf0060d0",
+      "name": "AI Validation Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": {{ $json.success }},\n  \"error\": \"{{ $json.error_type }}\",\n  \"message\": \"{{ $json.message }}\",\n  \"validation_errors\": {{ JSON.stringify($json.validation_errors) }},\n  \"request_id\": \"{{ $json.request_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        928,
+        272
+      ],
+      "id": "a6f0b80c-1816-44bc-9113-e67a5ce58cfa",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "577426da-bb6b-4702-9c36-98f3591ebd16",
+              "leftValue": "={{ $json.CONFIDENCE }}",
+              "rightValue": 0.79,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        -192
+      ],
+      "id": "7316f6ec-2176-4183-9de2-c81c62d70951",
+      "name": "confidence guard"
+    },
+    {
+      "parameters": {
+        "sendTo": "manager@example.com",
+        "subject": "AI wymaga weryfikacji – niska pewność klasyfikacji",
+        "message": "=<p><strong>Wiadomość wymaga ręcznej weryfikacji AI.</strong></p>  <p> <strong>Confidence:</strong> {{ $json.CONFIDENCE }} </p>  <p> <strong>Klient:</strong> {{ $json.NAME }}<br> <strong>E-mail:</strong> {{ $json.EMAIL }}<br> <strong>Temat:</strong> {{ $json.SUBJECT }} </p>  <p><strong>Wiadomość klienta:</strong></p>  <p> {{ $json.MESSAGE.replace(/\\n/g, '<br>') }} </p>  <p><strong>Klasyfikacja AI:</strong></p>  <p> <strong>Kategoria:</strong> {{ $json.CATEGORY }}<br> <strong>Priorytet:</strong> {{ $json.PRIORITY }}<br> <strong>Department:</strong> {{ $json.DEPARTMENT }}<br> <strong>Auto-reply:</strong> {{ $json.CAN_AUTO_REPLY }} </p>  <p> <strong>Podsumowanie AI:</strong><br> {{ $json.SUMMARY }} <p>{{ $json.SUGGESTED_REPLY }}</p>  <p> <strong>Powód przekazania:</strong><br> Confidence AI jest poniżej ustalonego progu 0.80. </p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1312,
+        32
+      ],
+      "id": "52b703e5-0548-4f49-a421-ecc01af439d0",
+      "name": "message to employee - low confidence",
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Jesteś niezależnym systemem klasyfikującym wiadomości klientów sklepu z elektroniką.\n\nTwoim zadaniem jest niezależnie sklasyfikować wiadomość klienta.\n\nNie korzystaj z żadnej wcześniejszej klasyfikacji ani sugestii innego modelu.\n\n==================================================\nKATEGORIE\n==================================================\n\nWybierz dokładnie jedną kategorię:\n\n- reklamacja\n- zwrot\n- dostawa\n- faktura\n- marketing\n- współpraca\n- zamówienie\n- pytanie o produkt\n- inne\n- spam\n\nDEFINICJE KATEGORII:\n\nreklamacja\n\nUżyj, gdy klient zgłasza wadę, uszkodzenie, nieprawidłowe działanie produktu lub problem z produktem, który już posiada.\n\nzwrot\n\nUżyj, gdy klient chce zwrócić produkt, odstąpić od zakupu lub pyta o procedurę zwrotu.\n\ndostawa\n\nUżyj, gdy głównym tematem jest dostawa, wysyłka, kurier, paczkomat, opóźnienie przesyłki lub sposób dostarczenia zamówienia.\n\nfaktura\n\nUżyj, gdy klient pyta o fakturę, dane do faktury, korektę faktury lub dokument sprzedaży.\n\nmarketing\n\nUżyj wyłącznie dla wiadomości dotyczących marketingu, reklamy, promocji, oferty reklamowej, kampanii marketingowych lub komercyjnych propozycji promowania firmy.\n\nNie klasyfikuj zwykłego podziękowania, opinii lub pozytywnego feedbacku jako marketing.\n\nwspółpraca\n\nUżyj dla propozycji współpracy biznesowej, partnerskiej, afiliacyjnej, influencerskiej, B2B lub innych propozycji wspólnego działania.\n\nzamówienie\n\nUżyj wyłącznie, gdy głównym tematem jest konkretne zamówienie lub proces zakupu:\n\n- złożenie zamówienia,\n- zmiana zamówienia,\n- anulowanie zamówienia,\n- pytanie o status zamówienia,\n- problem dotyczący konkretnego zamówienia,\n- pytanie o możliwość złożenia zamówienia.\n\npytanie o produkt\n\nUżyj, gdy klient pyta o cechy, funkcje, kompatybilność, specyfikację, zastosowanie lub dostępne warianty produktu.\n\ninne\n\nUżyj, gdy wiadomość jest związana z obsługą klienta, ale nie pasuje jednoznacznie do żadnej z pozostałych kategorii.\n\nPrzykłady:\n\n- podziękowanie za obsługę → inne\n- pozytywna opinia → inne\n- ogólny feedback klienta → inne\n- ogólne pytanie niezwiązane z konkretną kategorią → inne\n\nspam\n\nUżyj, gdy wiadomość jest niepożądana, niezwiązana z działalnością sklepu, zawiera spam, masową reklamę, podejrzaną treść lub nie ma sensownego związku z obsługą klienta.\n\n==================================================\nZASADA WYBORU KATEGORII\n==================================================\n\nWybierz kategorię odpowiadającą GŁÓWNEMU CELOWI wiadomości klienta.\n\nJeżeli wiadomość może pasować do kilku kategorii, wybierz tę, która najlepiej opisuje główny problem lub intencję klienta.\n\nNie klasyfikuj wiadomości na podstawie pojedynczego słowa.\n\nAnalizuj znaczenie całej wiadomości.\n\nNie zakładaj informacji, których klient nie podał.\n\n==================================================\nPRIORYTET\n==================================================\n\nPRIORYTET:\n\nHIGH:\n\n- istniejący klient ma poważny problem wymagający szybkiej reakcji,\n- istnieje ryzyko straty pieniędzy,\n- istnieje ryzyko eskalacji,\n- występuje poważny problem z produktem,\n- występuje poważny problem z realizacją zamówienia,\n- opóźnienie odpowiedzi może istotnie zaszkodzić klientowi lub firmie.\n\nMEDIUM:\n\n- standardowa sprawa klienta wymagająca odpowiedzi,\n- pytanie o produkt,\n- pytanie o cechy, funkcje, kompatybilność, specyfikację lub warianty produktu,\n- wiadomość może prowadzić do sprzedaży,\n- wiadomość dotyczy oferty sklepu,\n- sprawa wymaga odpowiedzi pracownika, ale nie jest pilna,\n- problem nie jest pilny, ale wymaga obsługi.\n\nLOW:\n\n- wiadomość nie wymaga szybkiej reakcji,\n- nie ma bezpośredniego wpływu na bieżącą sprzedaż lub realizację zamówienia,\n- podziękowania,\n- pozytywny feedback,\n- marketing,\n- współpraca,\n- sprawy administracyjne,\n- wiadomości o charakterze ogólnym, które nie wymagają obsługi klienta.\n\nWAŻNA ZASADA:\n\nPytanie o produkt NIE może otrzymać priorytetu LOW tylko dlatego, że nie jest pilne.\n\nJeżeli klient pyta o produkt, jego funkcje, kompatybilność, specyfikację, dostępne warianty lub możliwość zakupu, ustaw MEDIUM.\n\nJeżeli wiadomość dotyczy konkretnego problemu z produktem, który klient już posiada, zastosuj odpowiedni priorytet HIGH lub MEDIUM zgodnie z powagą problemu.\n\nSpam powinien otrzymać LOW, chyba że kontekst jednoznacznie wskazuje inaczej.\n\n==================================================\nDEPARTMENT\n==================================================\n\nWybierz dokładnie jeden:\n\n- reklamacje\n- zwroty\n- dostawa\n- sprzedaż\n- zamówienia\n- księgowość\n- marketing\n- współpraca\n- brak\n\nMAPOWANIE:\n\nreklamacja → reklamacje\nzwrot → zwroty\ndostawa → dostawa\nfaktura → księgowość\nmarketing → marketing\nwspółpraca → współpraca\nzamówienie → zamówienia\npytanie o produkt → sprzedaż\ninne → brak\nspam → brak\n\n==================================================\nCAN_AUTO_REPLY\n==================================================\n\nUstaw true WYŁĄCZNIE wtedy, gdy można poprawnie odpowiedzieć klientowi bez udziału pracownika i bez dostępu do dodatkowych informacji lub systemów.\nWAŻNE:\nJeżeli category = \"spam\", CAN_AUTO_REPLY musi być false.\nSpam nigdy nie może otrzymać automatycznej odpowiedzi.\n\nUstaw false, jeżeli odpowiedź wymaga:\n\n- sprawdzenia konkretnego zamówienia,\n- sprawdzenia statusu przesyłki,\n- sprawdzenia płatności,\n- sprawdzenia dostępności produktu,\n- sprawdzenia historii klienta,\n- dostępu do systemu sklepu,\n- dostępu do danych klienta,\n- podjęcia indywidualnej decyzji przez pracownika.\n\nW przypadku jakiejkolwiek istotnej wątpliwości ustaw false.\n\n==================================================\nNIEZALEŻNOŚĆ\n==================================================\n\nKlasyfikuj wiadomość wyłącznie na podstawie:\n\n- treści wiadomości klienta,\n- zasad zawartych w tym promptcie.\n\nNie próbuj dopasowywać wyniku do potencjalnej decyzji innego modelu.\n\nNie generuj:\n\n- CONFIDENCE,\n- SUMMARY,\n- SUGGESTED_REPLY.\n\n==================================================\nFORMAT\n==================================================\n\nZwróć wyłącznie poprawny JSON bez dodatkowego tekstu.\n\nFormat:\n\n{\n  \"category\": \"reklamacja | zwrot | dostawa | faktura | marketing | współpraca | zamówienie | pytanie o produkt | inne | spam\",\n  \"priority\": \"HIGH | MEDIUM | LOW\",\n  \"department\": \"reklamacje | zwroty | dostawa | sprzedaż | zamówienia | księgowość | marketing | współpraca | brak\",\n  \"can_auto_reply\": true\n}"
+            },
+            {
+              "content": "=Imię: {{ $('Parse AI Output').item.json.NAME }}\n\nEmail: {{ $('Parse AI Output').item.json.EMAIL }}\n\nTemat: {{ $('Parse AI Output').item.json.SUBJECT }}\n\nWiadomość:\n{{ $('Parse AI Output').item.json.MESSAGE }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        -176
+      ],
+      "id": "729466e0-e871-45de-8150-3a39e7d110c9",
+      "name": "independent classification",
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Jesteś systemem AI obsługującym wiadomości klientów sklepu z elektroniką.\n\nTwoim zadaniem jest:\n1. sklasyfikować wiadomość klienta,\n2. określić jej priorytet,\n3. określić odpowiedni dział,\n4. zdecydować, czy można bezpiecznie odpowiedzieć automatycznie,\n5. przygotować krótkie podsumowanie,\n6. przygotować sugerowaną odpowiedź.\n\n\n==================================================\nKATEGORIE\n==================================================\n\nWybierz dokładnie jedną kategorię:\n\n- reklamacja\n- zwrot\n- dostawa\n- faktura\n- marketing\n- współpraca\n- zamówienie\n- pytanie o produkt\n- inne\n- spam\n\nDEFINICJE KATEGORII:\n\nreklamacja\nUżyj, gdy klient zgłasza wadę, uszkodzenie, nieprawidłowe działanie produktu lub problem z produktem, który już posiada.\n\nzwrot\nUżyj, gdy klient chce zwrócić produkt, odstąpić od zakupu lub pyta o procedurę zwrotu.\n\ndostawa\nUżyj, gdy głównym tematem jest dostawa, wysyłka, kurier, paczkomat, opóźnienie przesyłki lub sposób dostarczenia zamówienia.\n\nfaktura\nUżyj, gdy klient pyta o fakturę, dane do faktury, korektę faktury lub dokument sprzedaży.\n\nmarketing\nUżyj wyłącznie dla wiadomości dotyczących marketingu, reklamy, promocji, oferty reklamowej, kampanii marketingowych lub komercyjnych propozycji promowania firmy.\n\nwspółpraca\nUżyj dla propozycji współpracy biznesowej, partnerskiej, afiliacyjnej, influencerskiej, B2B lub innych propozycji wspólnego działania.\n\nzamówienie\nUżyj wyłącznie, gdy głównym tematem jest konkretne zamówienie lub proces zakupu:\n- złożenie zamówienia,\n- zmiana zamówienia,\n- anulowanie zamówienia,\n- pytanie o status zamówienia,\n- problem dotyczący konkretnego zamówienia,\n- pytanie o możliwość złożenia zamówienia.\n\npytanie o produkt\nUżyj, gdy klient pyta o cechy, funkcje, kompatybilność, specyfikację, zastosowanie lub dostępne warianty produktu.\n\ninne\nUżyj, gdy wiadomość jest związana z obsługą klienta, ale nie pasuje jednoznacznie do żadnej z powyższych kategorii.\n\nPrzykłady:\n- podziękowanie za obsługę → inne\n- pozytywna opinia → inne\n- ogólny feedback klienta → inne\n- ogólne pytanie niezwiązane z konkretną kategorią → inne\n\nNie klasyfikuj zwykłego podziękowania, opinii lub pozytywnego feedbacku jako marketing.\n\nspam\nUżyj, gdy wiadomość jest niepożądana, niezwiązana z działalnością sklepu, zawiera spam, masową reklamę, podejrzaną treść lub nie ma sensownego związku z obsługą klienta.\n\n==================================================\nZASADA WYBORU KATEGORII\n==================================================\n\nWybierz kategorię odpowiadającą GŁÓWNEMU CELOWI wiadomości klienta.\n\nJeżeli wiadomość może pasować do kilku kategorii, wybierz tę, która najlepiej opisuje główny problem lub intencję klienta.\n\nNie klasyfikuj wiadomości na podstawie pojedynczego słowa.\n\nAnalizuj znaczenie całej wiadomości.\n\nNie zakładaj informacji, których klient nie podał.\n\n==================================================\nPRIORYTET\n==================================================\n\nZASADY PRIORYTETU:\n\nNajpierw określ, czy wiadomość jest związana z aktywną obsługą klienta, sprzedażą lub realizacją zamówienia.\n\nWAŻNE:\nBrak pilności nie oznacza automatycznie LOW.\n\nJeżeli wiadomość jest standardową sprawą klienta lub może prowadzić do sprzedaży, domyślnie wybierz MEDIUM, nawet jeśli sprawa nie jest pilna.\n\nHIGH:\n\nWybierz HIGH, gdy:\n\n- istniejący klient ma poważny problem wymagający szybkiej reakcji,\n- istnieje ryzyko straty pieniędzy,\n- istnieje ryzyko eskalacji,\n- występuje poważny problem z produktem,\n- występuje poważny problem z realizacją zamówienia,\n- opóźnienie odpowiedzi może istotnie zaszkodzić klientowi lub firmie.\n\nMEDIUM:\n\nWybierz MEDIUM, gdy:\n\n- jest to standardowa sprawa klienta,\n- wiadomość dotyczy produktu lub oferty sklepu,\n- wiadomość może prowadzić do sprzedaży,\n- klient pyta o produkt, jego cechy, parametry, kompatybilność lub warianty,\n- klient pyta o dostępność produktu,\n- klient pyta o cenę produktu,\n- klient pyta o możliwość zakupu,\n- klient pyta o ofertę sklepu,\n- klient pyta o sposób realizacji zamówienia,\n- wiadomość wymaga odpowiedzi pracownika, ale nie jest pilna.\n\nPytania dotyczące produktów i sprzedaży powinny otrzymywać MEDIUM nawet wtedy, gdy nie wymagają szybkiej reakcji.\n\nPrzykłady:\n\n\"Macie słuchawki bezprzewodowe?\"\n→ MEDIUM\n\n\"Czy ten telefon jest kompatybilny z tym etui?\"\n→ MEDIUM\n\n\"Ile kosztuje ten model?\"\n→ MEDIUM\n\n\"Czy ten produkt jest dostępny?\"\n→ MEDIUM\n\n\"Jakie modele tego produktu macie w ofercie?\"\n→ MEDIUM\n\n\"Chciałbym kupić ten telefon.\"\n→ MEDIUM\n\nLOW:\n\nWybierz LOW głównie wtedy, gdy wiadomość:\n\n- nie dotyczy bezpośredniej obsługi klienta,\n- nie dotyczy konkretnego produktu ani sprzedaży,\n- nie dotyczy konkretnego zamówienia ani jego realizacji,\n- jest marketingiem,\n- jest cold outreach,\n- jest propozycją współpracy,\n- jest sprawą administracyjną,\n- jest podziękowaniem,\n- jest pozytywną opinią,\n- jest ogólnym feedbackiem bez potrzeby dalszej obsługi.\n\nNie wybieraj LOW wyłącznie dlatego, że wiadomość nie jest pilna.\n\nZASADA WYBORU:\n\nJeżeli wiadomość jest standardową sprawą klienta dotyczącą produktu, sprzedaży, zamówienia lub realizacji usługi, wybierz MEDIUM, chyba że spełnia kryteria HIGH.\n\nJeżeli wiadomość nie wymaga pilnej reakcji, ale ma bezpośredni związek z klientem lub sprzedażą, wybierz MEDIUM.\n\nLOW stosuj głównie do wiadomości, które nie wymagają standardowej obsługi klienta ani bezpośredniego działania sprzedażowego.\n\nSPAM:\n\nJeżeli wiadomość jest spamem, ustaw:\n\npriority = LOW\ndepartment = brak\ncan_auto_reply = false\n\n==================================================\nDEPARTMENT\n==================================================\n\nWybierz dokładnie jeden:\n\n- reklamacje\n- zwroty\n- dostawa\n- sprzedaż\n- zamówienia\n- księgowość\n- marketing\n- współpraca\n- brak\n\nMAPOWANIE:\n\nreklamacja → reklamacje\nzwrot → zwroty\ndostawa → dostawa\nfaktura → księgowość\nmarketing → marketing\nwspółpraca → współpraca\nzamówienie → zamówienia\npytanie o produkt → sprzedaż\ninne → brak\nspam → brak\n\n==================================================\nCAN_AUTO_REPLY\n==================================================\n\nUstaw true WYŁĄCZNIE wtedy, gdy można poprawnie odpowiedzieć klientowi bez udziału pracownika i bez dostępu do dodatkowych informacji lub systemów.\nWAŻNE:\nJeżeli category = \"spam\", CAN_AUTO_REPLY musi być false.\nSpam nigdy nie może otrzymać automatycznej odpowiedzi.\n\nUstaw false, jeżeli odpowiedź wymaga:\n\n- sprawdzenia konkretnego zamówienia,\n- sprawdzenia statusu przesyłki,\n- sprawdzenia płatności,\n- sprawdzenia dostępności produktu,\n- sprawdzenia historii klienta,\n- dostępu do systemu sklepu,\n- dostępu do danych klienta,\n- podjęcia indywidualnej decyzji przez pracownika.\n\nW przypadku jakiejkolwiek istotnej wątpliwości ustaw false.\n\n==================================================\nSUMMARY\n==================================================\n\nUtwórz krótkie i konkretne streszczenie głównej intencji klienta.\n\n==================================================\nSUGGESTED_REPLY\n==================================================\n\nZawsze przygotuj profesjonalną i konkretną odpowiedź.\n\nJeżeli CAN_AUTO_REPLY = true:\n\n- odpowiedź może być przeznaczona do automatycznego wysłania,\n- używaj wyłącznie informacji wynikających z wiadomości klienta oraz zasad zawartych w tym promptcie,\n- nie wymyślaj danych dotyczących zamówienia, płatności, dostawy, dostępności produktu ani historii klienta.\n\nJeżeli CAN_AUTO_REPLY = false:\n\n- przygotuj odpowiedź jako propozycję dla pracownika,\n- pracownik musi mieć możliwość jej sprawdzenia i edycji przed wysłaniem.\n\nDla kategorii spam SUGGESTED_REPLY może być pusty.\n\n==================================================\nCONFIDENCE\n==================================================\n\nNie generuj pola CONFIDENCE.\n\nConfidence jest obliczane przez osobny mechanizm workflow.\n\n==================================================\nFORMAT\n==================================================\n\nZwróć wyłącznie poprawny JSON bez dodatkowego tekstu.\n\nFormat:\n\n{\n  \"category\": \"reklamacja | zwrot | dostawa | faktura | marketing | współpraca | zamówienie | pytanie o produkt | inne | spam\",\n  \"priority\": \"HIGH | MEDIUM | LOW\",\n  \"department\": \"reklamacje | zwroty | dostawa | sprzedaż | zamówienia | księgowość | marketing | współpraca | brak\",\n  \"can_auto_reply\": true,\n  \"summary\": \"krótkie streszczenie\",\n  \"suggested_reply\": \"proponowana odpowiedź\"\n}"
+            },
+            {
+              "content": "=Przeanalizuj poniższą wiadomość klienta.\n\nID: {{ $json.ID }}\nImię i nazwisko: {{ $json.NAME }}\nEmail: {{ $json.EMAIL }}\nTemat: {{ $json.SUBJECT }}\n\nTreść wiadomości:\n{{ $json.MESSAGE }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -192,
+        -176
+      ],
+      "id": "067f7882-a51c-4057-be20-79acead889ca",
+      "name": "cassification + answer",
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const model1 = $('Parse AI Output').first().json;\n\nconst model2Text = $input.first().json.output?.[0]?.content?.[0]?.text;\n\nif (!model2Text) {\n  throw new Error('Model 2 output not found');\n}\n\nconst model2 = JSON.parse(model2Text);\n\n// ==========================================\n// PORÓWNANIE MODELI\n// ==========================================\n\nlet score = 0;\n\n// CATEGORY = 2 punkty\nif (model1.CATEGORY === model2.category) {\n  score += 2;\n}\n\n// PRIORITY = 1 punkt\nif (model1.PRIORITY === model2.priority) {\n  score += 1;\n}\n\n// DEPARTMENT = 1 punkt\nif (model1.DEPARTMENT === model2.department) {\n  score += 1;\n}\n\n// CAN_AUTO_REPLY = 2 punkty\nif (model1.CAN_AUTO_REPLY === model2.can_auto_reply) {\n  score += 2;\n}\n\n// ==========================================\n// WYLICZENIE CONFIDENCE\n// ==========================================\n\nlet confidence;\n\nif (score === 6) {\n  confidence = 0.95;\n} else if (score === 5) {\n  confidence = 0.85;\n} else if (score === 4) {\n  confidence = 0.70;\n} else if (score === 3) {\n  confidence = 0.55;\n} else {\n  confidence = 0.40;\n}\n\n// ==========================================\n// DODATKOWY GUARDRAIL\n// ==========================================\n\n// Jeżeli modele nie zgadzają się co do możliwości\n// automatycznej odpowiedzi, confidence nie może być wysokie.\n\nif (model1.CAN_AUTO_REPLY !== model2.can_auto_reply) {\n  confidence = Math.min(confidence, 0.70);\n}\n\n// ==========================================\n// OUTPUT\n// ==========================================\n\nreturn [\n  {\n    json: {\n      ...model1,\n\n      CONFIDENCE: confidence,\n\n      CONSENSUS_SCORE: score,\n\n      MODEL_2_CATEGORY: model2.category,\n      MODEL_2_PRIORITY: model2.priority,\n      MODEL_2_DEPARTMENT: model2.department,\n      MODEL_2_CAN_AUTO_REPLY: model2.can_auto_reply\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -176
+      ],
+      "id": "a7dcf18b-0f95-432a-a9b2-eea9baacafcf",
+      "name": "Calculate Confidence"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"status\": \"ignored\",\n  \"reason\": \"spam\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1840,
+        -400
+      ],
+      "id": "1bbd950d-5150-4484-a048-e8607990166f",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  status: \"processed\",\n  priority: $json.PRIORITY,\n  category: $json.CATEGORY\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2608,
+        -480
+      ],
+      "id": "3b738d05-fa3b-48df-97a6-d0e184a8f71e",
+      "name": "Respond to Webhook3"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  status: \"processed\",\n  priority: $json.PRIORITY,\n  category: $json.CATEGORY\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2608,
+        -304
+      ],
+      "id": "fa04ee9d-88fc-464e-99bf-26d4ad05a97f",
+      "name": "Respond to Webhook4"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  status: \"processed\",\n  priority: $json.PRIORITY,\n  category: $json.CATEGORY\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2592,
+        -112
+      ],
+      "id": "225c953a-e932-44fa-968f-19894ecdd1c7",
+      "name": "Respond to Webhook5"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  status: \"processed\",\n  priority: $json.PRIORITY,\n  category: $json.CATEGORY\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2592,
+        112
+      ],
+      "id": "d2f11bd9-58c0-475b-98a7-89d6b15d80ae",
+      "name": "Respond to Webhook6"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  status: \"processed\"\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -544,
+        176
+      ],
+      "id": "d3547dff-0545-40f3-970e-66445e70f7ad",
+      "name": "Respond to Webhook7"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: false,\n  status: \"manual_review\",\n  reason: \"low_confidence\",\n  confidence: $json.CONFIDENCE\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        256
+      ],
+      "id": "dc709320-98a0-4b18-8ea2-6b07dde71cb6",
+      "name": "Respond to Webhook8"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $json.body;\n\nreturn {\n  json: {\n    ...data,\n    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,\n    received_at: new Date().toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        -64
+      ],
+      "id": "1dd97887-be21-4ee4-a5e1-3f24a45aa34b",
+      "name": "Create Metadata"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8a8d55bb-16ea-4628-865a-1b9121440ebb",
+              "leftValue": "={{ $json.CATEGORY }}",
+              "rightValue": "spam",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        -208
+      ],
+      "id": "569b0287-2223-4c87-9d77-f0b3693b9747",
+      "name": "spam?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "email valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "data validation": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "cassification + answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "independent classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email valid?": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "message to employer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "can ai auto reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "message to user1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "can ai auto reply": {
+      "main": [
+        [
+          {
+            "node": "message to user",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "message to employer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Output Validation": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "confidence guard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confidence guard": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "message to employee - low confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "independent classification": {
+      "main": [
+        [
+          {
+            "node": "Calculate Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cassification + answer": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Confidence": {
+      "main": [
+        [
+          {
+            "node": "AI Output Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "message to employer": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "message to user": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook3": {
+      "main": [
+        []
+      ]
+    },
+    "message to employer1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "message to user1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "message to employee - low confidence": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Metadata": {
+      "main": [
+        [
+          {
+            "node": "data validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "spam?": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d73646d8-2784-4c61-bb00-30e555e316e8",
+  "meta": {
+    "github_sanitized": true,
+    "note": "Portfolio template. Replace YOUR_GOOGLE_SHEET_ID and reconnect credentials in your n8n environment before use."
+  },
+  "nodeGroups": [],
+  "id": "VsTQiVpcH3kZjq0G",
+  "tags": []
+}
