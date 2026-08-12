@@ -5,6 +5,20 @@ An AI-powered customer support triage and routing system built with **n8n, OpenA
 The system analyzes incoming customer messages, validates AI output, independently verifies the classification, calculates a deterministic confidence score, and routes each message according to business rules.
 
 ---
+## Key Features
+
+- AI-powered customer message classification
+- Independent second-model verification
+- Deterministic consensus and confidence scoring
+- Structured AI output validation
+- Confidence-based human escalation
+- Priority-based business routing
+- Automated customer and employee communication
+- Google Sheets logging
+- Webhook-based integration
+- Dedicated error-handling paths
+
+---
 
 ## Overview
 
@@ -39,7 +53,6 @@ Employee    Employee/User    Customer       Ignored
 The system is designed to reduce manual triage while preventing uncertain AI decisions from being automatically executed.
 
 ---
-
 ## Business Problem
 
 A customer support team needs to process incoming messages such as:
@@ -248,7 +261,9 @@ This allows the system to automatically answer suitable requests while keeping c
 
 ### LOW Priority
 
-Low-priority messages can be automatically handled when the AI determines that an automatic response is appropriate.
+Low-priority messages are routed to the customer.
+
+The workflow sends the generated response to the customer without employee intervention.
 
 ```text
 LOW
@@ -517,6 +532,9 @@ The workflow was tested against multiple scenarios.
 ### Test Execution
 
 ![Test Results](docs/test-results.png)
+```
+The test confirms agreement between both AI classification layers, successful AI output validation, and a deterministic confidence score of `0.95`.
+```
 ---
 
 ## Example Classifications
