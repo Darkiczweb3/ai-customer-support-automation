@@ -348,6 +348,10 @@ Terminal workflow paths return a structured response to the system that triggere
 
 ## Architecture
 
+### Workflow Overview
+
+![Workflow Overview](docs/workflow-overview.png)
+
 ```text
                          ┌─────────────────────┐
                          │   Customer Form     │
@@ -425,6 +429,13 @@ Terminal workflow paths return a structured response to the system that triggere
                                       ▼         ▼
                                    Customer   Employee
 ```
+### Confidence & Validation Engine
+
+![Confidence Engine](docs/confidence-engine.png)
+       
+### Business Routing
+
+![Business Routing](docs/routing.png)
 
 ---
 
@@ -503,6 +514,9 @@ The workflow was tested against multiple scenarios.
 | Invalid input | Validation error | Passed |
 | Spam | Ignored | Passed |
 
+### Test Execution
+
+![Test Results](docs/test-results.png)
 ---
 
 ## Example Classifications
