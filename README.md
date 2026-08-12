@@ -532,9 +532,9 @@ The workflow was tested against multiple scenarios.
 ### Test Execution
 
 ![Test Results](docs/test-results.png)
-```
+
 The test confirms agreement between both AI classification layers, successful AI output validation, and a deterministic confidence score of `0.95`.
-```
+
 ---
 
 ## Example Classifications
@@ -643,6 +643,12 @@ ai-customer-support-automation/
 │
 ├── workflow/
 │   └── customer-support-automation.json
+│
+├── docs/
+│   ├── workflow-overview.png
+│   ├── confidence-engine.png
+│   ├── routing.png
+│   └── test-results.png
 │
 └── README.md
 ```
